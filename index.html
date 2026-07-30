@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Froggy Jump - Zat dan Perubahannya (Kelas 7 SMP)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter & Fredoka -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pond: {
+                            dark: '#0f3844',
+                            deep: '#165063',
+                            surface: '#207894',
+                            light: '#38bdf8'
+                        },
+                        frog: {
+                            green: '#4ade80',
+                            dark: '#15803d',
+                            belly: '#fef08a'
+                        }
+                    },
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        inter: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Fredoka', 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            overflow: hidden;
+            background-color: #0f3844;
+        }
+
+        .glass-card {
+            background: rgba(15, 56, 68, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .glass-btn:active {
+            transform: translateY(1px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 3px;
+        }
+
+        /* Custom Ripple Animations */
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+
+        .animate-pulse-glow {
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+
+        /* Canvas Fullscreen Fit */
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen text-white relative flex flex-col justify-between select-none">
+
+    <!-- Top Utility Bar Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 p-2 sm:p-3 flex justify-between items-center pointer-events-none">
+        <!-- Logo / Title Badge -->
+        <div class="pointer-events-auto flex items-center gap-2 bg-emerald-950/80 border border-emerald-500/40 px-3 py-1.5 rounded-full shadow-lg backdrop-blur-md">
+            <span class="text-xl sm:text-2xl animate-bounce">🐸</span>
+            <div>
+                <h1 class="text-xs sm:text-sm font-bold text-emerald-400 tracking-wide uppercase leading-none">Froggy Jump</h1>
+                <p class="text-[10px] sm:text-xs text-emerald-200/80 leading-none">Zat & Perubahannya - Kelas 7</p>
+            </div>
+        </div>
+
+        <!-- System Action Buttons -->
+        <div class="pointer-events-auto flex items-center gap-2">
+            <!-- Audio BGM & SFX Toggle -->
+            <button id="btnSound" onclick="toggleAudio()" class="glass-btn p-2.5 rounded-full text-white shadow-md hover:text-emerald-300 transition" title="Mute/Unmute Audio">
+                <i id="soundIcon" class="fas fa-volume-high text-sm sm:text-base"></i>
+            </button>
+
+            <!-- Rain Effect Toggle -->
+            <button id="btnRain" onclick="toggleRain()" class="glass-btn p-2.5 rounded-full text-white shadow-md hover:text-cyan-300 transition" title="Efek Hujan">
+                <i id="rainIcon" class="fas fa-cloud-rain text-sm sm:text-base text-cyan-300"></i>
+            </button>
+
+            <!-- Exit / Home Button -->
+            <button id="btnHome" onclick="exitToMenu()" class="glass-btn p-2.5 rounded-full text-white shadow-md hover:text-amber-300 hidden transition" title="Kembali ke Menu Utama">
+                <i class="fas fa-house text-sm sm:text-base"></i>
+            </button>
+
+            <!-- Fullscreen Button (Top Right as Required) -->
+            <button id="btnFullscreen" onclick="toggleFullScreen()" class="glass-btn p-2.5 rounded-full text-white shadow-md hover:text-purple-300 transition" title="Layar Penuh">
+                <i id="fullscreenIcon" class="fas fa-expand text-sm sm:text-base"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN MENU OVERLAY -->
+    <div id="mainMenu" class="absolute inset-0 z-40 flex flex-col items-center justify-center p-4 bg-gradient-to-b from-teal-950/90 via-sky-950/95 to-slate-950/95 backdrop-blur-lg">
+        <!-- Floating decorative bubbles/frog -->
+        <div class="text-center mb-6 sm:mb-8 animate-fade-in">
+            <div class="inline-block relative">
+                <span class="text-6xl sm:text-8xl filter drop-shadow-[0_10px_15px_rgba(74,222,128,0.4)] animate-bounce inline-block">🐸</span>
+                <span class="absolute -top-2 -right-4 bg-emerald-500 text-slate-950 text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">SMP K-13 / Merdeka</span>
+            </div>
+            <h1 class="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-200 to-cyan-400 mt-2 tracking-tight">
+                FROGGY JUMP IPA
+            </h1>
+            <p class="text-xs sm:text-base text-teal-200/90 max-w-md mx-auto mt-1 font-inter">
+                Petualangan Melompat Katak - Modul Pembelajaran Interactive <b>Zat dan Perubahannya</b> (Kelas 7 SMP)
+            </p>
+        </div>
+
+        <!-- Mode Selection Cards Container -->
+        <div class="w-full max-w-3xl grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <!-- Solo Mode (1 Player) -->
+            <button onclick="startGameMode('solo')" class="glass-card hover:bg-emerald-600/30 border-emerald-500/30 p-5 rounded-2xl flex flex-col items-center text-center group transition duration-300 hover:scale-105 hover:shadow-[0_0_25px_rgba(16,185,129,0.3)]">
+                <div class="w-14 h-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl mb-3 group-hover:bg-emerald-500 group-hover:text-slate-950 transition">
+                    <i class="fas fa-user"></i>
+                </div>
+                <h3 class="text-lg font-bold text-emerald-300 group-hover:text-white">Solo (1 Pemain)</h3>
+                <p class="text-xs text-slate-300 mt-1 font-inter">Layar penuh untuk latihan mandiri dan menguji pemahaman materi.</p>
+                <span class="mt-4 px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-xs font-semibold group-hover:bg-emerald-400 group-hover:text-slate-950">Mulai Solo</span>
+            </button>
+
+            <!-- Duel Mode (2 Players) -->
+            <button onclick="startGameMode('duel')" class="glass-card hover:bg-cyan-600/30 border-cyan-500/30 p-5 rounded-2xl flex flex-col items-center text-center group transition duration-300 hover:scale-105 hover:shadow-[0_0_25px_rgba(6,182,212,0.3)]">
+                <div class="w-14 h-14 rounded-2xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 text-2xl mb-3 group-hover:bg-cyan-500 group-hover:text-slate-950 transition">
+                    <i class="fas fa-user-friends"></i>
+                </div>
+                <h3 class="text-lg font-bold text-cyan-300 group-hover:text-white">Duel (2 Pemain)</h3>
+                <p class="text-xs text-slate-300 mt-1 font-inter">Layar terbagi 2 vertikal. Adu cepat melompat menjawab soal!</p>
+                <span class="mt-4 px-3 py-1 bg-cyan-500/20 text-cyan-300 rounded-full text-xs font-semibold group-hover:bg-cyan-400 group-hover:text-slate-950">Mulai Duel</span>
+            </button>
+
+            <!-- Squad Mode (4 Players) -->
+            <button onclick="startGameMode('squad')" class="glass-card hover:bg-purple-600/30 border-purple-500/30 p-5 rounded-2xl flex flex-col items-center text-center group transition duration-300 hover:scale-105 hover:shadow-[0_0_25px_rgba(168,85,247,0.3)]">
+                <div class="w-14 h-14 rounded-2xl bg-purple-500/20 flex items-center justify-center text-purple-400 text-2xl mb-3 group-hover:bg-purple-500 group-hover:text-slate-950 transition">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h3 class="text-lg font-bold text-purple-300 group-hover:text-white">Squad (4 Pemain)</h3>
+                <p class="text-xs text-slate-300 mt-1 font-inter">Layar terbagi 4 panel. Kompetisi kelompok yang seru!</p>
+                <span class="mt-4 px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-xs font-semibold group-hover:bg-purple-400 group-hover:text-slate-950">Mulai Squad</span>
+            </button>
+        </div>
+
+        <!-- Materi Quick Reference Modal Launcher & Instructions -->
+        <div class="flex flex-wrap justify-center gap-3 text-xs text-slate-300">
+            <button onclick="openMateriModal()" class="glass-btn px-4 py-2 rounded-xl text-teal-300 hover:text-white flex items-center gap-2">
+                <i class="fas fa-book-open"></i> Ringkasan Materi Zat
+            </button>
+            <button onclick="openHelpModal()" class="glass-btn px-4 py-2 rounded-xl text-teal-300 hover:text-white flex items-center gap-2">
+                <i class="fas fa-gamepad"></i> Petunjuk Permainan
+            </button>
+        </div>
+    </div>
+
+    <!-- GAMEPLAY VIEW CONTAINER -->
+    <div id="gameContainer" class="relative w-full h-full flex-grow overflow-hidden hidden">
+        <!-- Background Canvas for Global Rain & Water Effects -->
+        <canvas id="waterCanvas" class="absolute inset-0 z-0"></canvas>
+
+        <!-- Dynamic Grid Viewports Overlay for Players -->
+        <div id="playersGrid" class="relative z-10 w-full h-full grid transition-all duration-500">
+            <!-- Dynamic player panels generated by JS -->
+        </div>
+    </div>
+
+    <!-- MODAL: Ringkasan Materi -->
+    <div id="materiModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-card bg-slate-900/90 max-w-2xl w-full rounded-2xl p-6 border border-teal-500/30 max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-700">
+                <h2 class="text-xl font-bold text-teal-300 flex items-center gap-2">
+                    <i class="fas fa-book-bookmark"></i> Ringkasan Materi: Zat dan Perubahannya
+                </h2>
+                <button onclick="closeModal('materiModal')" class="text-slate-400 hover:text-white text-lg px-2">&times;</button>
+            </div>
+            <div class="overflow-y-auto py-4 font-inter text-xs sm:text-sm text-slate-200 space-y-4 leading-relaxed pr-2">
+                <div class="bg-teal-950/40 p-3 rounded-xl border border-teal-800/40">
+                    <h3 class="font-bold text-emerald-400 text-sm mb-1">1. Wujud Zat & Sifatnya</h3>
+                    <ul class="list-disc list-inside space-y-1 text-slate-300">
+                        <li><b>Zat Padat:</b> Bentuk dan volume tetap. Partikel rapat dan terikat sangat kuat.</li>
+                        <li><b>Zat Cair:</b> Bentuk berubah sesuai wadah, volume tetap. Partikel agak renggang dan bebas bergerak.</li>
+                        <li><b>Zat Gas:</b> Bentuk dan volume berubah-ubah mengisi ruangan. Partikel sangat renggang.</li>
+                    </ul>
+                </div>
+
+                <div class="bg-cyan-950/40 p-3 rounded-xl border border-cyan-800/40">
+                    <h3 class="font-bold text-cyan-400 text-sm mb-1">2. Perubahan Wujud Zat</h3>
+                    <p class="mb-1"><b>Memerlukan Kalor (Menerima Panas):</b></p>
+                    <p class="text-slate-300 pl-2">• Mencair (Padat ➔ Cair), Menguap (Cair ➔ Gas), Menyublim (Padat ➔ Gas).</p>
+                    <p class="mb-1 mt-2"><b>Melepaskan Kalor (Melepas Panas):</b></p>
+                    <p class="text-slate-300 pl-2">• Membeku (Cair ➔ Padat), Mengembun (Gas ➔ Cair), Mengkristal/Deposisi (Gas ➔ Padat).</p>
+                </div>
+
+                <div class="bg-indigo-950/40 p-3 rounded-xl border border-indigo-800/40">
+                    <h3 class="font-bold text-indigo-400 text-sm mb-1">3. Perubahan Fisika vs Perubahan Kimia</h3>
+                    <ul class="list-disc list-inside space-y-1 text-slate-300">
+                        <li><b>Perubahan Fisika:</b> Tidak menghasilkan zat baru. Sifat zat asal tetap (contoh: es meleleh, beras ditumbuk jadi tepung, gula larut).</li>
+                        <li><b>Perubahan Kimia:</b> Menghasilkan zat baru dengan sifat baru (contoh: kayu terbakar jadi abu, besi berkarat, makanan membusuk, nasi basi).</li>
+                    </ul>
+                </div>
+
+                <div class="bg-amber-950/40 p-3 rounded-xl border border-amber-800/40">
+                    <h3 class="font-bold text-amber-400 text-sm mb-1">4. Massa Jenis ($\rho = m / V$)</h3>
+                    <p class="text-slate-300">Massa jenis ($\rho$) adalah kerapatan massa per satuan volume. Zat dengan massa jenis lebih kecil akan terapung di atas zat bermassa jenis lebih besar.</p>
+                </div>
+            </div>
+            <div class="pt-3 border-t border-slate-700 flex justify-end">
+                <button onclick="closeModal('materiModal')" class="px-5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl text-xs">Paham, Siap Bermain!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Petunjuk Permainan -->
+    <div id="helpModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-card bg-slate-900/90 max-w-lg w-full rounded-2xl p-6 border border-cyan-500/30">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-700">
+                <h2 class="text-xl font-bold text-cyan-300 flex items-center gap-2">
+                    <i class="fas fa-gamepad"></i> Petunjuk Permainan
+                </h2>
+                <button onclick="closeModal('helpModal')" class="text-slate-400 hover:text-white text-lg px-2">&times;</button>
+            </div>
+            <div class="py-4 font-inter text-xs sm:text-sm text-slate-200 space-y-3 leading-relaxed">
+                <div class="flex items-start gap-3">
+                    <div class="text-2xl">🐸</div>
+                    <p>Bantu katak melompat ke daun/teratai yang berisi <b>jawaban soal yang benar</b>.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="text-2xl text-emerald-400">✅</div>
+                    <p><b>Jika Benar:</b> Katak melompat gembira, pertanyaan baru muncul, dan rantai teratai lama akan turun secara halus.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="text-2xl text-rose-400">🌊</div>
+                    <p><b>Jika Salah:</b> Katak akan melompat lalu tenggelam ke air dengan efek cipratan dan gelombang air!</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="text-2xl text-amber-400">⌨️</div>
+                    <p><b>Kontrol:</b> Klik/Sentuh daun jawaban atau gunakan tombol keypad 1-4 di layar/keyboard HP atau Tablet.</p>
+                </div>
+            </div>
+            <div class="pt-3 border-t border-slate-700 flex justify-end">
+                <button onclick="closeModal('helpModal')" class="px-5 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl text-xs">Mengerti</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Victory / Game Over Summary -->
+    <div id="resultModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg flex items-center justify-center p-4 hidden">
+        <div class="glass-card bg-slate-900/95 max-w-lg w-full rounded-3xl p-6 sm:p-8 text-center border border-emerald-500/50 shadow-2xl animate-fade-in">
+            <div class="text-6xl mb-2 animate-bounce">🏆</div>
+            <h2 id="resultTitle" class="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-emerald-300 to-teal-200">
+                Permainan Selesai!
+            </h2>
+            <p id="resultSubtitle" class="text-xs sm:text-sm text-slate-300 mt-1 font-inter">
+                Selamat! Kamu telah menyelesaikan kuis Zat & Perubahannya.
+            </p>
+
+            <!-- Leaderboard / Score List Container -->
+            <div id="resultScoreList" class="my-6 space-y-2 text-left font-inter">
+                <!-- Dynamically populated -->
+            </div>
+
+            <div class="flex gap-3 justify-center">
+                <button onclick="restartCurrentGame()" class="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black rounded-2xl shadow-lg transition transform hover:scale-105 flex items-center gap-2">
+                    <i class="fas fa-rotate-right"></i> Main Lagi
+                </button>
+                <button onclick="exitToMenu()" class="px-6 py-3 glass-btn hover:bg-white/20 text-white font-bold rounded-2xl transition flex items-center gap-2">
+                    <i class="fas fa-house"></i> Menu Utama
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* Web Audio API Sound Synthesizer (No external sound files required) */
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+                this.bgmInterval = null;
+                this.bgmStep = 0;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playJump() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(450, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+
+            playCorrect() {
+                if (this.muted || !this.ctx) return;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.08);
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.08 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.08);
+                    osc.stop(this.ctx.currentTime + idx * 0.08 + 0.25);
+                });
+            }
+
+            playWrongSplash() {
+                if (this.muted || !this.ctx) return;
+                // Noise splash sound + low buzz tone
+                const bufferSize = this.ctx.sampleRate * 0.3;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(1200, this.ctx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.3);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start();
+
+                // Low disappointed tone
+                const osc = this.ctx.createOscillator();
+                const toneGain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(80, this.ctx.currentTime + 0.35);
+                toneGain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                toneGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+                osc.connect(toneGain);
+                toneGain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.35);
+            }
+
+            startBGM() {
+                if (this.bgmInterval) return;
+                const bgmNotes = [261.63, 329.63, 392.00, 329.63, 261.63, 392.00, 329.63, 293.66]; // C4, E4, G4 loop
+                this.bgmStep = 0;
+                this.bgmInterval = setInterval(() => {
+                    if (this.muted || !this.ctx) return;
+                    const freq = bgmNotes[this.bgmStep % bgmNotes.length];
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.35);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.35);
+                    this.bgmStep++;
+                }, 400);
+            }
+
+            stopBGM() {
+                if (this.bgmInterval) {
+                    clearInterval(this.bgmInterval);
+                    this.bgmInterval = null;
+                }
+            }
+        }
+
+        const soundEngine = new SoundEngine();
+
+        const QUESTION_BANK = [
+            {
+                q: "Zat yang memiliki bentuk dan volume yang selalu tetap adalah...",
+                options: ["Padat", "Cair", "Gas", "Plasma"],
+                ans: 0,
+                hint: "Contohnya seperti batu atau kayu."
+            },
+            {
+                q: "Perubahan wujud zat dari cair menjadi gas dinamakan...",
+                options: ["Membeku", "Menguap", "Menyublim", "Mengembun"],
+                ans: 1,
+                hint: "Terjadi saat air mendidih."
+            },
+            {
+                q: "Es batu yang mencair di suhu ruang merupakan contoh dari perubahan...",
+                options: ["Kimia", "Fisika", "Biologi", "Nuklir"],
+                ans: 1,
+                hint: "Tidak menghasilkan zat jenis baru."
+            },
+            {
+                q: "Proses perubahan wujud dari padat langsung menjadi gas tanpa melalui fase cair dinamakan...",
+                options: ["Menguap", "Mengembun", "Menyublim", "Mengkristal"],
+                ans: 2,
+                hint: "Terjadi pada kapur bagus (kamfer)."
+            },
+            {
+                q: "Pembakaran kayu menjadi abu merupakan contoh perubahan...",
+                options: ["Fisika", "Kimia", "Mekanis", "Wujud"],
+                ans: 1,
+                hint: "Menghasilkan zat baru yang tidak bisa kembali."
+            },
+            {
+                q: "Rumus matematis untuk menghitung massa jenis (ρ) suatu benda adalah...",
+                options: ["ρ = m × V", "ρ = m / V", "ρ = V / m", "ρ = m + V"],
+                ans: 1,
+                hint: "Massa dibagi oleh Volume."
+            },
+            {
+                q: "Peristiwa terbentuknya titik-titik air di dinding luar gelas es dinamakan...",
+                options: ["Mengembun", "Menguap", "Mencair", "Menyublim"],
+                ans: 0,
+                hint: "Perubahan wujud dari uap air (gas) menjadi cair."
+            },
+            {
+                q: "Sifat partikel pada zat padat adalah...",
+                options: ["Sangat rapat & terikat kuat", "Agak renggang", "Sangat bebas bergerak", "Berjauhan"],
+                ans: 0,
+                hint: "Membuat bentuknya sulit diubah."
+            },
+            {
+                q: "Minyak goreng berada di atas air ketika dicampur karena...",
+                options: ["Massa jenis minyak < air", "Massa jenis minyak > air", "Volume minyak lebih besar", "Massa air lebih kecil"],
+                ans: 0,
+                hint: "Zat bermassa jenis lebih kecil akan terapung."
+            },
+            {
+                q: "Beras yang ditumbuk halus menjadi tepung merupakan perubahan...",
+                options: ["Kimia", "Fisika", "Biologi", "Termal"],
+                ans: 1,
+                hint: "Hanya ukurannya yang berubah, sifatnya tetap beras."
+            },
+            {
+                q: "Ciri khas yang menandai terjadinya perubahan KIMIA adalah...",
+                options: ["Hanya berubah bentuk", "Terbentuk zat baru", "Dapat kembali ke bentuk awal", "Volume tetap"],
+                ans: 1,
+                hint: "Seperti besi berkarat atau nasi menjadi basi."
+            },
+            {
+                q: "Proses perubahan wujud dari gas menjadi padat dinamakan...",
+                options: ["Menguap", "Mencair", "Mengkristal (Deposisi)", "Membeku"],
+                ans: 2,
+                hint: "Terbentuknya salju atau jelaga asap."
+            }
+        ];
+
+        let currentMode = 'solo'; // 'solo', 'duel', 'squad'
+        let isRainActive = true;
+        let rainParticles = [];
+        let waterRipples = [];
+        let canvas, ctx;
+        let animationFrameId = null;
+
+        // Player state structure
+        let players = [];
+
+        function initCanvas() {
+            canvas = document.getElementById('waterCanvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Generate initial rain particles
+            rainParticles = [];
+            for (let i = 0; i < 120; i++) {
+                rainParticles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    length: Math.random() * 15 + 10,
+                    speed: Math.random() * 8 + 6,
+                    opacity: Math.random() * 0.4 + 0.1
+                });
+            }
+        }
+
+        function resizeCanvas() {
+            if (!canvas) return;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function animateCanvas() {
+            if (!ctx) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Pond Background Water Gradient
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#0f3844');
+            grad.addColorStop(0.5, '#165063');
+            grad.addColorStop(1, '#09252e');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Sine Water Waves
+            const time = Date.now() * 0.002;
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                const yOffset = (canvas.height / 5) * i + Math.sin(time + i) * 15;
+                for (let x = 0; x < canvas.width; x += 20) {
+                    const y = yOffset + Math.sin(x * 0.01 + time + i) * 10;
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+
+            // Draw and Update Water Ripples
+            for (let i = waterRipples.length - 1; i >= 0; i--) {
+                const r = waterRipples[i];
+                ctx.strokeStyle = `rgba(56, 189, 248, ${r.alpha})`;
+                ctx.lineWidth = r.lineWidth;
+                ctx.beginPath();
+                ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                r.radius += r.speed;
+                r.alpha -= 0.015;
+                if (r.alpha <= 0) {
+                    waterRipples.splice(i, 1);
+                }
+            }
+
+            // Draw Rain Particles if enabled
+            if (isRainActive) {
+                ctx.strokeStyle = 'rgba(224, 242, 254, 0.4)';
+                ctx.lineWidth = 1.5;
+                for (let i = 0; i < rainParticles.length; i++) {
+                    const p = rainParticles[i];
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x - p.length * 0.2, p.y + p.length);
+                    ctx.stroke();
+
+                    p.x -= p.speed * 0.2;
+                    p.y += p.speed;
+
+                    if (p.y > canvas.height) {
+                        p.y = -20;
+                        p.x = Math.random() * canvas.width;
+                        // Add splash ripple occasionally at bottom
+                        if (Math.random() < 0.1) {
+                            addRipple(p.x, canvas.height - Math.random() * 50, 8, 0.4);
+                        }
+                    }
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(animateCanvas);
+        }
+
+        function addRipple(x, y, maxRadius = 30, initialAlpha = 0.8) {
+            waterRipples.push({
+                x: x,
+                y: y,
+                radius: 5,
+                maxRadius: maxRadius,
+                alpha: initialAlpha,
+                speed: 1.5 + Math.random(),
+                lineWidth: 2
+            });
+        }
+
+        function startGameMode(mode) {
+            soundEngine.init();
+            soundEngine.startBGM();
+
+            currentMode = mode;
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('gameContainer').classList.remove('hidden');
+            document.getElementById('btnHome').classList.remove('hidden');
+
+            const grid = document.getElementById('playersGrid');
+            grid.innerHTML = '';
+
+            // Set grid layouts depending on player mode
+            if (mode === 'solo') {
+                grid.className = 'w-full h-full grid grid-cols-1 p-2 sm:p-4 gap-4';
+                players = [createPlayerState(1, 'Pemain 1', 'emerald')];
+            } else if (mode === 'duel') {
+                grid.className = 'w-full h-full grid grid-cols-1 md:grid-cols-2 p-2 sm:p-4 gap-2 sm:gap-4';
+                players = [
+                    createPlayerState(1, 'Pemain 1', 'emerald'),
+                    createPlayerState(2, 'Pemain 2', 'cyan')
+                ];
+            } else if (mode === 'squad') {
+                grid.className = 'w-full h-full grid grid-cols-2 md:grid-cols-4 p-2 sm:p-3 gap-2 sm:gap-3';
+                players = [
+                    createPlayerState(1, 'Pemain 1', 'emerald'),
+                    createPlayerState(2, 'Pemain 2', 'cyan'),
+                    createPlayerState(3, 'Pemain 3', 'amber'),
+                    createPlayerState(4, 'Pemain 4', 'purple')
+                ];
+            }
+
+            players.forEach(p => {
+                grid.appendChild(buildPlayerUI(p));
+                renderPlayerQuestion(p);
+            });
+        }
+
+        function createPlayerState(id, name, colorTheme) {
+            // Shuffle questions array for each player
+            const shuffledQ = [...QUESTION_BANK].sort(() => Math.random() - 0.5);
+            return {
+                id: id,
+                name: name,
+                color: colorTheme,
+                questions: shuffledQ,
+                currentIndex: 0,
+                score: 0,
+                streak: 0,
+                isAnimating: false,
+                frogState: 'idle', // 'idle', 'jumping', 'sinking', 'happy'
+                frogPos: { padIndex: 0, yOffset: 0, opacity: 1 }
+            };
+        }
+
+        function buildPlayerUI(player) {
+            const container = document.createElement('div');
+            container.id = `player-viewport-${player.id}`;
+            container.className = `glass-card relative flex flex-col justify-between p-3 sm:p-4 rounded-2xl border border-white/20 overflow-hidden shadow-2xl`;
+
+            const themeColorClass = {
+                emerald: 'from-emerald-500/20 to-teal-900/40 text-emerald-300 border-emerald-500/40',
+                cyan: 'from-cyan-500/20 to-blue-900/40 text-cyan-300 border-cyan-500/40',
+                amber: 'from-amber-500/20 to-orange-900/40 text-amber-300 border-amber-500/40',
+                purple: 'from-purple-500/20 to-indigo-900/40 text-purple-300 border-purple-500/40'
+            }[player.color];
+
+            container.innerHTML = `
+                <!-- Player Header HUD -->
+                <div class="flex items-center justify-between bg-black/40 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 z-20">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-${player.color}-400 animate-ping"></span>
+                        <span class="font-bold text-xs sm:text-sm tracking-wide text-white">${player.name}</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs sm:text-sm">
+                        <span class="text-amber-300 font-bold"><i class="fas fa-star mr-1"></i><span id="score-${player.id}">0</span></span>
+                        <span class="text-emerald-300 font-semibold"><i class="fas fa-bullseye mr-1"></i><span id="progress-${player.id}">1/${player.questions.length}</span></span>
+                    </div>
+                </div>
+
+                <!-- Frog Pond Playfield Area -->
+                <div id="pond-area-${player.id}" class="relative flex-grow my-2 sm:my-3 rounded-xl overflow-hidden flex flex-col items-center justify-center bg-gradient-to-b ${themeColorClass}">
+                    
+                    <!-- Floating Lily Pads & Frog Visualization Container -->
+                    <div class="relative w-full h-full min-h-[160px] sm:min-h-[220px] flex items-center justify-around px-2">
+                        <!-- Lily Pads Options (4 Leaves) -->
+                        <div id="leaf-container-${player.id}" class="w-full grid grid-cols-2 gap-2 sm:gap-3 z-10 my-auto">
+                            <!-- Populated dynamically -->
+                        </div>
+
+                        <!-- Frog Character Element -->
+                        <div id="frog-${player.id}" class="absolute transition-all duration-300 pointer-events-none z-20 flex flex-col items-center" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                            <div class="text-4xl sm:text-6xl filter drop-shadow-[0_8px_12px_rgba(0,0,0,0.5)] transform hover:scale-110 transition">🐸</div>
+                            <span class="text-[10px] bg-slate-900/80 text-emerald-300 px-2 py-0.5 rounded-full mt-1 border border-emerald-500/30">Si Katak</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question Text Box -->
+                <div class="bg-slate-950/80 backdrop-blur-md p-3 rounded-xl border border-white/10 z-20 mb-2 shadow-inner">
+                    <span class="text-[10px] uppercase tracking-wider text-emerald-400 font-bold block mb-1">Soal IPA Kelas 7</span>
+                    <p id="question-text-${player.id}" class="text-xs sm:text-sm font-medium text-slate-100 leading-snug min-h-[2.5rem]">
+                        Loading pertanyaan...
+                    </p>
+                </div>
+
+                <!-- Responsive Quick Control Hint for Keyboard/Touch -->
+                <div class="text-[10px] text-center text-slate-400 font-inter">
+                    Sentuh atau Klik Pilihan Daun di Atas
+                </div>
+            `;
+
+            return container;
+        }
+
+        function renderPlayerQuestion(player) {
+            const qObj = player.questions[player.currentIndex];
+            const qTextEl = document.getElementById(`question-text-${player.id}`);
+            const leafContainer = document.getElementById(`leaf-container-${player.id}`);
+            const progressEl = document.getElementById(`progress-${player.id}`);
+            const scoreEl = document.getElementById(`score-${player.id}`);
+
+            if (!qObj) return;
+
+            qTextEl.textContent = qObj.q;
+            progressEl.textContent = `${player.currentIndex + 1}/${player.questions.length}`;
+            scoreEl.textContent = player.score;
+
+            // Reset Frog position to center top
+            const frogEl = document.getElementById(`frog-${player.id}`);
+            if (frogEl) {
+                frogEl.style.transform = `translate(-50%, -50%) scale(1)`;
+                frogEl.style.opacity = '1';
+                frogEl.innerHTML = `
+                    <div class="text-4xl sm:text-6xl filter drop-shadow-[0_8px_12px_rgba(0,0,0,0.5)]">🐸</div>
+                    <span class="text-[10px] bg-slate-900/80 text-emerald-300 px-2 py-0.5 rounded-full mt-1 border border-emerald-500/30">Si Katak</span>
+                `;
+            }
+
+            // Build 4 Lily Pad buttons
+            leafContainer.innerHTML = '';
+            qObj.options.forEach((optText, index) => {
+                const padBtn = document.createElement('button');
+                padBtn.onclick = () => handleAnswer(player.id, index);
+                padBtn.className = `relative group glass-btn p-3 sm:p-4 rounded-2xl flex flex-col items-center justify-center text-center transition duration-200 border border-emerald-400/30 hover:border-emerald-300 hover:bg-emerald-500/20 active:scale-95`;
+                
+                padBtn.innerHTML = `
+                    <!-- Lily Pad Leaf Visual Background -->
+                    <div class="absolute inset-0 bg-emerald-900/40 rounded-2xl group-hover:bg-emerald-800/60 transition -z-10"></div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-bold text-xs flex items-center justify-center">${String.fromCharCode(65 + index)}</span>
+                        <span class="text-[10px] text-emerald-200">Daun #${index + 1}</span>
+                    </div>
+                    <span class="text-xs sm:text-sm font-semibold text-white leading-tight group-hover:text-emerald-200">${optText}</span>
+                `;
+                leafContainer.appendChild(padBtn);
+            });
+        }
+
+        function handleAnswer(playerId, chosenIndex) {
+            const player = players.find(p => p.id === playerId);
+            if (!player || player.isAnimating) return;
+
+            const qObj = player.questions[player.currentIndex];
+            const isCorrect = chosenIndex === qObj.ans;
+            player.isAnimating = true;
+
+            const frogEl = document.getElementById(`frog-${player.id}`);
+            const leafContainer = document.getElementById(`leaf-container-${player.id}`);
+            const chosenLeaf = leafContainer.children[chosenIndex];
+
+            // Get bounding coordinates for animated jump targeting
+            if (chosenLeaf && frogEl) {
+                const leafRect = chosenLeaf.getBoundingClientRect();
+                const containerRect = document.getElementById(`pond-area-${player.id}`).getBoundingClientRect();
+                
+                const targetX = leafRect.left + leafRect.width / 2 - containerRect.left;
+                const targetY = leafRect.top + leafRect.height / 2 - containerRect.top;
+
+                // Animate Frog Arc Jump
+                soundEngine.playJump();
+                frogEl.style.transition = 'all 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+                frogEl.style.left = `${targetX}px`;
+                frogEl.style.top = `${targetY}px`;
+                frogEl.style.transform = `translate(-50%, -70%) scale(1.3)`;
+
+                setTimeout(() => {
+                    if (isCorrect) {
+                        // JAWABAN BENAR
+                        soundEngine.playCorrect();
+                        player.score += 10 + player.streak * 2;
+                        player.streak += 1;
+
+                        frogEl.innerHTML = `
+                            <div class="text-4xl sm:text-6xl animate-bounce filter drop-shadow-[0_0_15px_rgba(74,222,128,0.8)]">🐸</div>
+                            <span class="text-[10px] bg-emerald-500 text-slate-950 font-bold px-2 py-0.5 rounded-full mt-1">Hore! Benar!</span>
+                        `;
+                        chosenLeaf.classList.add('bg-emerald-500/40', 'border-emerald-300', 'ring-2', 'ring-emerald-400');
+
+                        // Add celebratory water ripples at target position
+                        addRipple(leafRect.left + leafRect.width / 2, leafRect.top + leafRect.height / 2, 50, 0.9);
+
+                        // Smooth transition to next question after short delay
+                        setTimeout(() => {
+                            player.currentIndex += 1;
+                            player.isAnimating = false;
+
+                            if (player.currentIndex >= player.questions.length) {
+                                checkAllPlayersFinished();
+                            } else {
+                                renderPlayerQuestion(player);
+                            }
+                        }, 1200);
+
+                    } else {
+                        // JAWABAN SALAH - KATAK TENGGELAM
+                        soundEngine.playWrongSplash();
+                        player.streak = 0;
+
+                        frogEl.innerHTML = `
+                            <div class="text-4xl sm:text-6xl filter drop-shadow-[0_0_15px_rgba(244,63,94,0.8)]">💦</div>
+                            <span class="text-[10px] bg-rose-500 text-white font-bold px-2 py-0.5 rounded-full mt-1">Tenggelam!</span>
+                        `;
+                        chosenLeaf.classList.add('bg-rose-500/40', 'border-rose-300', 'ring-2', 'ring-rose-400');
+
+                        // Create water splash effect
+                        addRipple(leafRect.left + leafRect.width / 2, leafRect.top + leafRect.height / 2, 70, 1.0);
+
+                        // Frog Sinking Animation
+                        frogEl.style.transition = 'all 0.6s ease-in';
+                        frogEl.style.transform = `translate(-50%, 20%) scale(0.2)`;
+                        frogEl.style.opacity = '0';
+
+                        setTimeout(() => {
+                            // Retry current question or advance depending on design
+                            player.isAnimating = false;
+                            renderPlayerQuestion(player);
+                        }, 1300);
+                    }
+                }, 400);
+            }
+        }
+
+        function checkAllPlayersFinished() {
+            const allDone = players.every(p => p.currentIndex >= p.questions.length);
+            if (allDone) {
+                setTimeout(showResultsModal, 500);
+            }
+        }
+
+        function showResultsModal() {
+            const modal = document.getElementById('resultModal');
+            const list = document.getElementById('resultScoreList');
+            list.innerHTML = '';
+
+            // Sort players by score descending
+            const sorted = [...players].sort((a, b) => b.score - a.score);
+
+            sorted.forEach((p, rank) => {
+                const medal = ['🥇', '🥈', '🥉', '🏅'][rank] || '🏅';
+                const row = document.createElement('div');
+                row.className = `flex justify-between items-center bg-slate-800/80 p-3 rounded-xl border border-slate-700`;
+                row.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">${medal}</span>
+                        <div>
+                            <span class="font-bold text-white text-sm sm:text-base">${p.name}</span>
+                            <span class="text-[10px] text-slate-400 block">${p.questions.length} Soal Selesai</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-lg font-black text-amber-300">${p.score}</span>
+                        <span class="text-xs text-slate-400 block">Poin</span>
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function restartCurrentGame() {
+            closeModal('resultModal');
+            startGameMode(currentMode);
+        }
+
+        function exitToMenu() {
+            soundEngine.stopBGM();
+            closeModal('resultModal');
+            document.getElementById('gameContainer').classList.add('hidden');
+            document.getElementById('mainMenu').classList.remove('hidden');
+            document.getElementById('btnHome').classList.add('hidden');
+        }
+
+        function toggleAudio() {
+            soundEngine.init();
+            soundEngine.muted = !soundEngine.muted;
+            const icon = document.getElementById('soundIcon');
+            if (soundEngine.muted) {
+                icon.className = 'fas fa-volume-xmark text-rose-400';
+            } else {
+                icon.className = 'fas fa-volume-high text-emerald-400';
+            }
+        }
+
+        function toggleRain() {
+            isRainActive = !isRainActive;
+            const icon = document.getElementById('rainIcon');
+            if (isRainActive) {
+                icon.className = 'fas fa-cloud-rain text-cyan-300';
+            } else {
+                icon.className = 'fas fa-sun text-amber-300';
+            }
+        }
+
+        function toggleFullScreen() {
+            const icon = document.getElementById('fullscreenIcon');
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+                icon.className = 'fas fa-compress text-purple-300';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                    icon.className = 'fas fa-expand text-purple-300';
+                }
+            }
+        }
+
+        function openMateriModal() {
+            document.getElementById('materiModal').classList.remove('hidden');
+        }
+
+        function openHelpModal() {
+            document.getElementById('helpModal').classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        window.addEventListener('keydown', (e) => {
+            // Player 1 Keyboard controls (Keys 1, 2, 3, 4)
+            if (players.length > 0 && ['1', '2', '3', '4'].includes(e.key)) {
+                handleAnswer(1, parseInt(e.key) - 1);
+            }
+        });
+
+        // Initialize Canvas & Audio on Window Load
+        window.onload = function() {
+            initCanvas();
+            animateCanvas();
+        };
+    </script>
+</body>
+</html>
